@@ -9,16 +9,19 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Construct MongoDB URI from environment variables
+const dbURI = `mongodb+srv://${process.env.MONGODB_USERNAME}:${process.env.MONGODB_PASSWORD}@${process.env.MONGODB_CLUSTER}/${process.env.MONGODB_DB}?retryWrites=true&w=majority`;
+
 // MongoDB Connection with improved error handling
-mongoose.connect(process.env.MONGODB_URI, {
+mongoose.connect(dbURI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
-  serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
+  serverSelectionTimeoutMS: 5000,
 })
 .then(() => console.log('Connected to MongoDB'))
 .catch(err => {
   console.error('Could not connect to MongoDB:', err.message);
-  process.exit(1); // Exit the process if can't connect
+  process.exit(1);
 });
 
 // User Schema
@@ -33,34 +36,31 @@ const User = mongoose.model('User', userSchema);
 app.get('/api/users', async (req, res) => {
   try {
     const users = await User.find();
-    res.json(users || []); // Ensure always returns an array
+    res.json(users || []);
   } catch (err) {
     console.error('Error fetching users:', err);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Server error',
-      details: err.message 
+      details: err.message
     });
   }
 });
 
 app.post('/api/users', async (req, res) => {
   try {
-    if (!req.body.name || !req.body.email) {
+    const { name, email } = req.body;
+    if (!name || !email) {
       return res.status(400).json({ error: 'Name and email are required' });
     }
-    
-    const user = new User({
-      name: req.body.name,
-      email: req.body.email,
-    });
 
+    const user = new User({ name, email });
     const newUser = await user.save();
     res.status(201).json(newUser);
   } catch (err) {
     console.error('Error creating user:', err);
-    res.status(400).json({ 
+    res.status(400).json({
       error: 'Bad request',
-      details: err.message 
+      details: err.message
     });
   }
 });
